@@ -42,7 +42,7 @@ class UrlHelper extends BaseUrlHelper {
         }
         $options += $defaults;
 
-        $url = Router::url($url, $options['fullBase']);
+        $url = $this->getUrl($url, $options['fullBase']);
         if ($options['escape']) {
             $url = h($url);
         }
@@ -50,5 +50,79 @@ class UrlHelper extends BaseUrlHelper {
         return $url;
     }
 	
-	protected function get() {}
+	/**
+	 * Url Generator
+	 * @param type $url
+	 * @param bool $fullbase
+	 * @return string formatted url
+	 */
+	protected function getUrl($url, bool $fullbase):string
+	{
+		$url = Router::url($url, $fullbase);
+		if (Configure::read('debug') || !$this->isAsset($url))
+			return $url;
+		
+		return $this->getWithBase(Router::url($url, FALSE));
+	}
+	
+	/**
+	 * Determines if the requested url is an asset
+	 * @param type $url
+	 * @return bool
+	 */
+	protected function isAsset(string $url, $options):bool
+	{
+		$ext = $options['ext'] ?? substr($url, 0, strrpos($url, '.'));
+		
+		return preg_match("/jpe?g|mpe?g|gif|png|ico|cur|gz|svg|svgz|mp4|ogg|ogv|webm|htc|css|js|eot|woff|woff2|ttf|css|scss/i", $url) >= 1;
+	}
+	
+	/**
+	 * Returns the base for this url
+	 * @param string $url
+	 * @return string
+	 */
+	protected function getWithBase(string $url):string
+	{
+		$index = $this->getIndex($url);
+		
+		if (!Configure::read('MKCDN.autoConfig.enabled'))
+			return Configure::read('MKCDN.servers.' . $index);
+		
+		return sprintf(Configure::read('MKCDN.autoConfig.serverTemplate'), $index, $url);
+	}
+	
+	/**
+	 * Get an index for
+	 * @param string $url
+	 * @return string
+	 */
+	protected function getIndex(string $url):string
+	{
+		return  $this->getHash($url) % $this->getNrOfServers();
+	}
+	
+	/**
+	 * Get an hash for
+	 * @param string $url
+	 * @return string
+	 */
+	protected function getHash(string $url):string
+	{
+		return crc32($url);
+	}
+	
+	/**
+	 * Returns the number of servers available
+	 * @return int
+	 */
+	protected function getNrOfServers():int
+	{
+		if (Configure::read('MKCDN.autoConfig.enabled')) {
+			return Configure::read('MKCDN.autoConfig.end') - Configure::read('MKCDN.autoConfig.start') + 1;
+		}
+		
+		$list =  Configure::read('MKCDN.servers');
+		return count($list);
+	}
 }
