@@ -8,6 +8,8 @@ namespace MKCDN\View\Helper;
 
 use Cake\View\Helper\UrlHelper as BaseUrlHelper;
 use Cake\Routing\Router;
+use Cake\Core\Configure;
+
 /**
  * Enables CDN content distribution over various servers.
  * Your static (default all content with extension) is distributed over
@@ -16,39 +18,35 @@ use Cake\Routing\Router;
  * @author Michiel Keijts
  */
 class UrlHelper extends BaseUrlHelper {
-    /**
-     * Returns a URL based on provided parameters.
+	/**
+     * Generates URL for given asset file.
      *
-     * ### Options:
+     * Depending on options passed provides full URL with domain name. Also calls
+     * `Helper::assetTimestamp()` to add timestamp to local files.
+	 * 
+	 * This function now distributes among CDN files
      *
-     * - `escape`: If false, the URL will be returned unescaped, do only use if it is manually
-     *    escaped afterwards before being displayed.
-     * - `fullBase`: If true, the full base URL will be prepended to the result
-     *
-     * @param string|array|null $url Either a relative string URL like `/products/view/23` or
-     *    an array of URL parameters. Using an array for URLs will allow you to leverage
-     *    the reverse routing features of CakePHP.
-     * @param array|bool $options Array of options; bool `full` for BC reasons.
-     * @return string Full translated URL with base path.
+     * @param string|array $path Path string or URL array
+     * @param array $options Options array. Possible keys:
+     *   `fullBase` Return full URL with domain name
+     *   `pathPrefix` Path prefix for relative URLs
+     *   `ext` Asset extension to append
+     *   `plugin` False value will prevent parsing path as a plugin
+     * @return string Generated URL
      */
-    public function build($url = null, $options = false)
-    {
-        $defaults = [
-            'fullBase' => false,
-            'escape' => true,
-        ];
-        if (!is_array($options)) {
-            $options = ['fullBase' => $options];
-        }
-        $options += $defaults;
-
-        $url = $this->getUrl($url, $options['fullBase']);
-        if ($options['escape']) {
-            $url = h($url);
-        }
-
-        return $url;
-    }
+	public function assetUrl($path, array $options = array()) 
+	{
+		if (is_array($path) || !$this->isAsset($path, $options))
+			return parent::assetUrl($path, $options);
+		
+		$default = ['fullBase' => FALSE];
+		$options = $options + $default;
+		
+		$options['fullBase'] = FALSE;
+        $path = parent::assetUrl($path, $options);
+		
+		return $this->getUrl($path, $options);		
+	}
 	
 	/**
 	 * Url Generator
@@ -56,25 +54,25 @@ class UrlHelper extends BaseUrlHelper {
 	 * @param bool $fullbase
 	 * @return string formatted url
 	 */
-	protected function getUrl($url, bool $fullbase):string
+	protected function getUrl($url, array $options = []):string
 	{
-		$url = Router::url($url, $fullbase);
-		if (Configure::read('debug') || !$this->isAsset($url))
+		$url = Router::url($url, $options['fullBase']);
+		if (Configure::read('debug') || !$this->isAsset($url, $options))
 			return $url;
 		
 		return $this->getWithBase(Router::url($url, FALSE));
 	}
 	
 	/**
-	 * Determines if the requested url is an asset
+	 * Determines if the requested url is an asset (not .php, not .html)
 	 * @param type $url
 	 * @return bool
 	 */
-	protected function isAsset(string $url, $options):bool
+	protected function isAsset(string $url, array $options = []):bool
 	{
-		$ext = $options['ext'] ?? substr($url, 0, strrpos($url, '.'));
+		$ext = strtolower(trim($options['ext'] ?? substr($url, strrpos($url, '.') + 1), '.'));
 		
-		return preg_match("/jpe?g|mpe?g|gif|png|ico|cur|gz|svg|svgz|mp4|ogg|ogv|webm|htc|css|js|eot|woff|woff2|ttf|css|scss/i", $url) >= 1;
+		return $ext !== 'php' && $ext !== 'htm' && $ext !== 'html';
 	}
 	
 	/**
