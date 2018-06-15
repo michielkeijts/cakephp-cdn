@@ -85,7 +85,7 @@ class UrlHelper extends BaseUrlHelper {
 		$index = $this->getIndex($url);
 		
 		if (!Configure::read('MKCDN.autoConfig.enabled'))
-			return Configure::read('MKCDN.servers.' . $index);
+			return sprintf(Configure::read('MKCDN.servers.' . $index), $url);
 		
 		return sprintf(Configure::read('MKCDN.autoConfig.serverTemplate'), $index, $url);
 	}
