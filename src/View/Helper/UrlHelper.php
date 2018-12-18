@@ -49,7 +49,7 @@ class UrlHelper extends BaseUrlHelper {
 	}
 	
 	/**
-	 * Url Generator
+	 * Url Generator, when enabled but not a full url
 	 * @param type $url
 	 * @param bool $fullbase
 	 * @return string formatted url
@@ -57,11 +57,33 @@ class UrlHelper extends BaseUrlHelper {
 	protected function getUrl($url, array $options = []):string
 	{
 		$url = Router::url($url, $options['fullBase']);
-		if (Configure::read('debug') || !$this->isAsset($url, $options))
+		if ($this->isDisabled() || !$this->isAsset($url, $options) || $this->isFull($url))
 			return $url;
 		
 		return $this->getWithBase(Router::url($url, FALSE));
 	}
+    
+    /**
+     * Test a url to a pattern ^[a-z]://
+     * 
+     * Basically, if it is an absolute full url
+     * @param string $url
+     * @return bool
+     */
+    protected function isFull(string $url = "") :bool
+    {
+        return preg_match('/^([a-z]+\:\/\/)/', $url) == 1;
+    }    
+    
+    
+    /**
+     * Return if disabled. Use env variabele
+     * @return bool
+     */
+    protected function isDisabled() : bool
+    {
+        return env("MKCDN", Configure::read('debug') !== TRUE) !== TRUE;        
+    }
 	
 	/**
 	 * Determines if the requested url is an asset (not .php, not .html)
